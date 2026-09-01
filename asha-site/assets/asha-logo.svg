@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 150" role="img" aria-label="Asha Berkeley">
+  <defs>
+    <linearGradient id="flame" x1="0" y1="1" x2="0.6" y2="0">
+      <stop offset="0" stop-color="#ff5e00"/>
+      <stop offset="0.55" stop-color="#ff7a1a"/>
+      <stop offset="1" stop-color="#ffb35c"/>
+    </linearGradient>
+  </defs>
+  <!-- diya flame -->
+  <g transform="translate(10,8)">
+    <path d="M62 6 C50 34 30 44 30 74 a32 32 0 0 0 64 0 C94 44 74 34 62 6 Z" fill="url(#flame)"/>
+    <path d="M62 40 C56 54 46 60 46 76 a16 16 0 0 0 32 0 C78 60 68 54 62 40 Z" fill="#fff3e4" opacity="0.9"/>
+    <!-- diya base -->
+    <path d="M18 116 q44 26 88 0 l-8 16 q-36 18 -72 0 Z" fill="#ffb35c"/>
+  </g>
+  <text x="150" y="88" font-family="Georgia, 'Times New Roman', serif" font-size="74" font-weight="700" letter-spacing="6" fill="#fff3e4">ASHA</text>
+  <text x="153" y="126" font-family="Helvetica Neue, Arial, sans-serif" font-size="27" letter-spacing="14" fill="#ffb35c">BERKELEY</text>
+</svg>
