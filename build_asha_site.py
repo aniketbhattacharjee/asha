@@ -17,8 +17,8 @@ import re, os, glob
 DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asha-site")
 EMAIL = "berkeley@ashanet.org"
 VENMO = "https://account.venmo.com/u/ashaberkeley"
-# TODO: replace with the public share/form link if this base link isn't viewable
-AIRTABLE = "https://airtable.com/appoZNPc6yCmgft2f"
+AIRTABLE = "https://airtable.com/appoZNPc6yCmgft2f/shrN8PH1w1WBdqNJb"
+AIRTABLE_EMBED = "https://airtable.com/embed/appoZNPc6yCmgft2f/shrN8PH1w1WBdqNJb?viewControls=on"
 
 # from ~/Downloads/Coffee Chat Info F26.xlsx (Antara deduped)
 MEMBERS = [
@@ -551,24 +551,8 @@ MAINS["projects"] = f'''<section class="asha-pagehead">
   <p style="text-align:center;"><a class="asha-btn" href="donations.html">Support a project</a></p>
 </div></section>'''
 
-# MEMBERS: figure first, then the real directory.
-_cards = []
-for name, role, year, likes, li, cal in MEMBERS:
-    init = "".join(w[0] for w in name.split()[:2])
-    links = []
-    if cal:
-        links.append(f'<a href="{cal}" target="_blank" rel="noopener">Coffee chat</a>')
-    if li:
-        links.append(f'<a href="{li}" target="_blank" rel="noopener">LinkedIn</a>')
-    _cards.append(f'''    <div class="asha-person">
-      <div class="init">{init}</div>
-      <h3>{name}</h3>
-      <span class="role">{role} &middot; {year}</span>
-      <span class="likes">{likes}</span>
-      <div class="links">{''.join(links)}</div>
-    </div>''')
-_people_html = "\n".join(_cards)
-
+# MEMBERS: figure first, then the Airtable directory (leadership grid removed;
+# the Airtable is the member directory now). MEMBERS list kept above for reference.
 MAINS["members"] = f'''<section class="asha-pagehead asha-pagehead--snug">
   <span class="asha-kicker">Our team</span>
   <h1>The people behind the hope.</h1>
@@ -577,16 +561,20 @@ MAINS["members"] = f'''<section class="asha-pagehead asha-pagehead--snug">
   <img src="assets/photo-team.jpg" alt="The Asha Berkeley team on the steps of Doe Library"/>
   <figcaption>The chapter on the steps of Doe Library, UC Berkeley.</figcaption>
 </figure>
-<section class="asha-section"><div class="asha-wrap">
-  <h2>Leadership</h2>
-  <p class="asha-prose" style="margin-bottom:2.5rem;">Every one of us is a volunteer.
-  Want to talk? Grab a coffee chat with any of us, we mean it.</p>
-  <!-- TODO: add headshots when the exported photo files are shared -->
-  <div class="asha-people">
-{_people_html}
+<section class="asha-section" style="padding-left:2vw; padding-right:2vw; background:#000;">
+  <div class="asha-wrap">
+    <h2>Meet us over coffee</h2>
+    <p class="asha-prose" style="margin-bottom:2rem;">Every one of us is a volunteer.
+    Browse the table, pick a person, and book a chat.</p>
   </div>
-</div></section>
-<section class="asha-section asha-section--panel"><div class="asha-wrap">
+  <iframe class="airtable-embed" title="Asha Berkeley coffee chats"
+    src="{AIRTABLE_EMBED}"
+    frameborder="0" width="100%" height="1100"
+    style="background:transparent; border:1px solid var(--line); border-radius:4px; display:block;"></iframe>
+  <p class="asha-note" style="margin-top:1rem; text-align:center;">Table not loading?
+  <a href="{AIRTABLE}" target="_blank" rel="noopener">Open it on Airtable</a>.</p>
+</section>
+<section class="asha-section"><div class="asha-wrap">
   <div class="asha-row">
     <div>
       <h2>Want your name here?</h2>
