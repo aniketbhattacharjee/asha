@@ -3,3 +3,9 @@ site-93.188.167.109/
 
 # OS junk
 .DS_Store
+.vercel
+.env*
+
+# Vercel local config
+.vercel/
+.env*.local
