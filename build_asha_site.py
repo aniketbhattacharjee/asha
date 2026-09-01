@@ -95,6 +95,13 @@ head = re.sub(
     r'<div class="container header-menu-nav-item[^"]*">\s*<a[^>]*>\s*'
     r'<div class="header-menu-nav-item-content">\s*DeCal\s*</div>\s*</a>\s*</div>', "", head)
 
+# the About page IS the homepage now; point its nav/footer links at the root
+head = head.replace('href="about.html"', 'href="index.html"')
+foot = foot.replace('href="about.html"', 'href="index.html"')
+
+# header uses the real Asha Berkeley logo (transparent cutout)
+head = head.replace("assets/asha-logo.svg", "assets/asha-logo-real.png")
+
 
 def swap_assets(s):
     s = re.sub(r'assets/[0-9a-f]{8}_White_Phx_Logo[^"\\ ,)]*', "assets/asha-logo.svg", s)
@@ -126,25 +133,107 @@ foot = re.sub(r'(srcset=")[^"]*(")', r"\1\2", foot)
 # replace the template's fluid-grid footer with a flat, evenly spaced one
 FOOTER_HTML = f'''
 <div class="asha-footer">
-  <img src="assets/asha-logo.svg" alt="Asha Berkeley"/>
-  <nav class="asha-footer-nav">
-    <a href="about.html">About</a>
-    <a href="projects.html">Projects</a>
-    <a href="members.html">Members</a>
-    <a href="join.html">Join</a>
-    <a href="donations.html">Donations</a>
-  </nav>
-  <p><a href="mailto:{EMAIL}">{EMAIL}</a> &nbsp;&middot;&nbsp;
-     <a href="{VENMO}" target="_blank" rel="noopener">Venmo @ashaberkeley</a></p>
-  <p class="fineprint">Asha for Education, UC Berkeley chapter. Secular, volunteer run,
-  every dollar to the classroom.</p>
+  <div class="asha-footer-cols">
+    <div class="asha-footer-col asha-footer-col--brand">
+      <a href="index.html"><img src="assets/asha-logo-real.png" alt="Asha Berkeley" style="border:none;"/></a>
+      <p>The founding chapter of Asha for Education, a registered 501(c)(3)
+      nonprofit. Secular, volunteer run, every dollar to the classroom.</p>
+    </div>
+    <div class="asha-footer-col">
+      <h4>Pages</h4>
+      <p><a href="index.html">About</a></p>
+      <p><a href="projects.html">Projects</a></p>
+      <p><a href="members.html">Members</a></p>
+      <p><a href="join.html">Join</a></p>
+      <p><a href="donations.html">Donations</a></p>
+    </div>
+    <div class="asha-footer-col">
+      <h4>Elsewhere</h4>
+      <p><a href="https://www.instagram.com/asha_berkeley/" target="_blank" rel="noopener">Instagram</a></p>
+      <p><a href="https://www.facebook.com/ashaberkeley/" target="_blank" rel="noopener">Facebook</a></p>
+      <p><a href="https://linktr.ee/ashaberkeley" target="_blank" rel="noopener">Linktree</a></p>
+      <p><a href="https://donate.ashanet.org/?c=58" target="_blank" rel="noopener">Donate via Asha</a></p>
+      <p><a href="{VENMO}" target="_blank" rel="noopener">Venmo @ashaberkeley</a></p>
+      <p><a href="https://ashanet.org" target="_blank" rel="noopener">ashanet.org</a></p>
+    </div>
+    <div class="asha-footer-col asha-footer-col--contact">
+      <h4>Contact</h4>
+      <p><a href="mailto:{EMAIL}">{EMAIL}</a></p>
+      <p>Mail: PO Box 4274,<br/>Berkeley, CA 94704-0274</p>
+      <p>Checks: Asha for Education,<br/>PO Box 888080,<br/>Los Angeles, CA 90088-8080</p>
+    </div>
+  </div>
+  <p class="fineprint">Asha for Education, UC Berkeley chapter &middot; Est. 1991</p>
 </div>'''
 foot = re.sub(r'(<footer[^>]*data-footer-sections[^>]*>).*?(</footer>)',
               lambda m: m.group(1) + FOOTER_HTML + m.group(2), foot, count=1, flags=re.S)
 
-# strip the scroll-toggle script a previous build injected (chrome is self-sourced)
+# strip scripts previous builds injected (chrome is self-sourced)
 foot = re.sub(r"<script>\(function\(\)\{var h=document\.getElementById\('header'\).*?</script>\n?",
               "", foot, flags=re.S)
+foot = re.sub(r'<script id="asha-reveal">.*?</script>\n?', "", foot, flags=re.S)
+foot = re.sub(r'<script id="asha-fx"[^>]*>.*?</script>\n?', "", foot, flags=re.S)
+foot = re.sub(r'<script id="asha-menu">.*?</script>\n?', "", foot, flags=re.S)
+foot = re.sub(r'<script src="https://cdn\.jsdelivr\.net/npm/animejs[^"]*"></script>\n?', "", foot)
+
+# scroll-reveal: rows, list items, and figures ease in as they enter the viewport
+REVEAL_JS = '''<script id="asha-reveal">(function(){
+if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+if (location.pathname.indexOf('join') !== -1) return;
+var els = document.querySelectorAll('.asha-row, .asha-item, .asha-figure, .asha-stat, .asha-embed-frame');
+if (!('IntersectionObserver' in window)) return;
+var io = new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if (e.isIntersecting) { e.target.classList.add('asha-in'); io.unobserve(e.target); }
+  });
+}, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+els.forEach(function(el, i){
+  el.classList.add('asha-reveal');
+  el.style.transitionDelay = Math.min((i % 4) * 70, 210) + 'ms';
+  io.observe(el);
+});
+})();</script>'''
+foot = foot.replace("</body>", REVEAL_JS + "\n</body>")
+
+# our own burger toggle: replaces the buttons (dropping any template listeners)
+MENU_JS = '''<script id="asha-menu">(function(){
+document.querySelectorAll('.header-burger-btn').forEach(function(btn){
+  var b = btn.cloneNode(true);
+  btn.parentNode.replaceChild(b, btn);
+  b.addEventListener('click', function(ev){
+    ev.preventDefault(); ev.stopPropagation();
+    document.body.classList.toggle('asha-menu-open');
+  });
+});
+document.querySelectorAll('.header-menu a').forEach(function(a){
+  a.addEventListener('click', function(){
+    document.body.classList.remove('asha-menu-open');
+  });
+});
+})();</script>'''
+foot = foot.replace("</body>", MENU_JS + "\n</body>")
+
+# anime.js hero entrance + MagicUI-style number tickers on stats
+FX_JS = '''<script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
+<script id="asha-fx">(function(){
+if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !window.anime) return;
+var fmt = function(n){ return n.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ','); };
+var tick = new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if (!e.isIntersecting) return;
+    tick.unobserve(e.target);
+    var raw = e.target.textContent.trim();
+    var m = raw.match(/^([^0-9]*)([0-9][0-9,]*)(.*)$/);
+    if (!m) return;
+    var target = parseInt(m[2].replace(/,/g, ''), 10);
+    var obj = { v: 0 };
+    anime({ targets: obj, v: target, round: 1, duration: 1400, easing: 'easeOutExpo',
+      update: function(){ e.target.textContent = m[1] + fmt(obj.v) + m[3]; } });
+  });
+}, { threshold: 0.6 });
+document.querySelectorAll('.asha-stat b').forEach(function(el){ tick.observe(el); });
+})();</script>'''
+foot = foot.replace("</body>", FX_JS + "\n</body>")
 
 # disable the template's dynamic (fade in/out) header behavior at the config level
 head = head.replace("&quot;headerStyle&quot;: &quot;dynamic&quot;",
@@ -209,6 +298,16 @@ ASHA_CSS = '''<style>
     transition:none !important; }
   #header .header-blur-background { display:none !important; }
 
+  /* small logo tucked hard into the top-left corner (links home) */
+  #header .header-inner { padding-top:10px !important; padding-bottom:10px !important;
+    padding-left:14px !important; }
+  #header .header-title-logo img, #header .header-mobile-logo img {
+    max-height:34px !important; width:auto !important; }
+  /* backing pill so the logo stays legible over any content while scrolling */
+  #header .header-title-logo a, #header .header-mobile-logo a {
+    display:inline-block; background:rgba(12,8,5,.78); padding:6px 10px;
+    border-radius:10px; line-height:0; }
+
   /* header text: own colors (theme went black on transparent bg) + theme font */
   #header .header-inner, #header .header-inner * { opacity:1 !important;
     visibility:visible !important; }
@@ -218,6 +317,38 @@ ASHA_CSS = '''<style>
   #header .header-title-logo a, #header .header-mobile-logo a { color:#f4e9d7 !important; }
   #header .burger-inner > div { background-color:#f4e9d7 !important; }
   .header-menu-nav-item a { font-family:'Jaini Purva',serif !important; }
+
+  /* mobile menu overlay: self-contained, no dependence on template JS */
+  #header .header-burger { display:none; }
+  #header .header-burger-btn { cursor:pointer; padding:12px; background:none;
+    border:none; }
+  #header .burger-box { width:26px; height:18px; position:relative; display:block; }
+  #header .burger-inner > div { position:absolute; left:0; right:0; height:2px !important;
+    background-color:#f4e9d7 !important; transition:transform .25s ease, opacity .2s ease; }
+  #header .top-bun { top:0; } #header .patty { top:8px; } #header .bottom-bun { top:16px; }
+  body.asha-menu-open #header .top-bun { transform:translateY(8px) rotate(45deg); }
+  body.asha-menu-open #header .patty { opacity:0; }
+  body.asha-menu-open #header .bottom-bun { transform:translateY(-8px) rotate(-45deg); }
+
+  .header-menu { position:fixed !important; inset:0 !important; z-index:900 !important;
+    background:#0f0b07 !important; opacity:0 !important; visibility:hidden !important;
+    pointer-events:none !important; transform:none !important;
+    transition:opacity .25s ease !important; overflow-y:auto !important;
+    display:flex !important; align-items:center !important; justify-content:center !important; }
+  body.asha-menu-open .header-menu { opacity:1 !important; visibility:visible !important;
+    pointer-events:auto !important; }
+  body.asha-menu-open { overflow:hidden; }
+  .header-menu .header-menu-bg { background:#0f0b07 !important; }
+  .header-menu-nav-item a { color:#f4e9d7 !important; font-size:2rem !important;
+    display:block; padding:.55em 0; text-align:center; text-decoration:none; }
+  .header-menu-nav-item a:hover,
+  .header-menu-nav-item--active a { color:#f27b21 !important; }
+  .header-menu-nav-folder { position:static !important; transform:none !important; }
+  .header-menu-controls { display:none !important; }
+
+  @media (max-width:799px), (pointer:coarse) and (max-width:1024px) {
+    #header .header-burger { display:flex; }
+    #header .header-nav { display:none; } }
 
   /* nav highlight animation for the top pages */
   .header-nav-item a { position:relative; transition:color .2s ease; }
@@ -239,6 +370,15 @@ ASHA_CSS = '''<style>
     transition:background .2s ease, transform .2s ease; }
   .asha-btn:hover { background:var(--orange-deep); border-color:var(--orange-deep);
     transform:translateY(-2px); }
+  /* MagicUI-style shimmer on primary buttons */
+  .asha-btn { position:relative; overflow:hidden; }
+  .asha-btn::after { content:""; position:absolute; top:0; bottom:0; width:44%;
+    left:-60%; background:linear-gradient(105deg, transparent 20%,
+    rgba(255,255,255,.38) 50%, transparent 80%);
+    animation:asha-shimmer 3.4s ease-in-out infinite; }
+  .asha-btn--ghost::after { display:none; }
+  @keyframes asha-shimmer { 0%, 55% { left:-60%; } 90%, 100% { left:120%; } }
+  @media (prefers-reduced-motion:reduce) { .asha-btn::after { animation:none; display:none; } }
   .asha-btn--ghost { background:transparent; color:var(--cream) !important;
     border:1px solid rgba(244,233,215,.45); }
   .asha-btn--ghost:hover { background:rgba(244,233,215,.08); border-color:var(--cream);
@@ -343,19 +483,75 @@ ASHA_CSS = '''<style>
   .asha-board-row .who { flex:1; color:var(--muted); letter-spacing:.04em; }
   .asha-board-row .amt { font-weight:700; }
 
-  /* footer, rebuilt flat and evenly spaced */
+  /* footer: full contact info in columns (colors forced; the template theme
+     paints footer text black otherwise) */
   .asha-footer { background:#0c0805; border-top:1px solid var(--line);
-    padding:4.5rem 7vw 3.5rem; display:flex; flex-direction:column;
-    align-items:center; gap:1.4rem; text-align:center; color:var(--muted); }
-  .asha-footer img { width:150px; height:auto; }
-  .asha-footer-nav { display:flex; gap:2.2rem; flex-wrap:wrap; justify-content:center; }
-  .asha-footer-nav a { color:var(--cream); text-decoration:none; font-size:.95rem;
-    letter-spacing:.06em; padding-bottom:3px;
-    border-bottom:1px solid var(--orange); transition:color .2s; }
-  .asha-footer-nav a:hover { color:var(--orange); }
-  .asha-footer p { margin:0; font-size:.9rem; }
-  .asha-footer a { color:var(--orange); }
-  .asha-footer .fineprint { font-size:.78rem; opacity:.7; }
+    padding:4.5rem 7vw 3rem; color:#c9b89e !important; }
+  .asha-footer p, .asha-footer span { color:#c9b89e !important; }
+  .asha-footer h4 { color:#f4e9d7 !important; }
+  .asha-footer a { color:#f4e9d7 !important; }
+  .asha-footer a:hover { color:#f27b21 !important; }
+  .asha-footer-cols { display:flex; flex-wrap:wrap; gap:3.5rem 7rem;
+    max-width:1360px; margin:0 auto 3rem; align-items:center;
+    justify-content:space-between; }
+  .asha-footer-col { flex:1 1 210px; min-width:200px; }
+  .asha-footer-col--brand { flex:1.5 1 300px; }
+  .asha-footer-col--brand img { width:260px; max-width:100%; height:auto;
+    margin-bottom:1.2rem; }
+  .asha-footer-col--contact { margin-left:auto; text-align:right;
+    align-self:flex-end; }
+  .asha-footer-col img { height:auto; margin-bottom:1rem; }
+  .asha-footer-col h4 { font-family:'Jaini Purva',serif !important;
+    font-weight:400 !important; font-size:1.5rem; color:var(--cream);
+    margin:0 0 1rem; }
+  .asha-footer-col p { margin:0 0 .85rem; font-size:1.02rem; line-height:1.7; }
+  .asha-footer-col a { color:var(--cream); text-decoration:none;
+    border-bottom:1px solid var(--orange); padding-bottom:2px; transition:color .2s; }
+  .asha-footer-col a:hover { color:var(--orange); }
+  .asha-footer .fineprint { font-size:.88rem; opacity:.75; text-align:center;
+    margin:0; padding-top:2rem; border-top:1px solid var(--line); }
+
+  /* scroll-reveal (added by JS; without JS everything stays visible) */
+  .asha-reveal { opacity:0; transform:translateY(26px);
+    transition:opacity .6s ease, transform .6s ease; }
+  .asha-reveal.asha-in { opacity:1; transform:none; }
+  @media (prefers-reduced-motion:reduce) {
+    .asha-reveal { opacity:1 !important; transform:none !important; } }
+
+  /* airtable embed: framed and dimmed so it sits with the dark theme */
+  .asha-embed-frame { border:1px solid var(--line); border-radius:10px;
+    padding:10px; background:#171109; }
+  .asha-embed-frame iframe { display:block; width:100%; height:1066px;
+    border:none; border-radius:6px;
+    filter:brightness(.88) contrast(.97) saturate(.95); }
+
+  /* FAQ accordion */
+  .asha-faq { border-bottom:1px solid var(--line); }
+  .asha-faq summary { cursor:pointer; list-style:none; display:flex;
+    justify-content:space-between; align-items:center; gap:1.5rem;
+    padding:1.5rem 0; font-size:1.15rem; color:var(--cream);
+    transition:color .2s ease; }
+  .asha-faq summary::-webkit-details-marker { display:none; }
+  .asha-faq summary::after { content:"+"; font-family:'Jaini Purva',serif;
+    font-size:1.6rem; color:var(--orange); transition:transform .25s ease; }
+  .asha-faq[open] summary::after { transform:rotate(45deg); }
+  .asha-faq summary:hover { color:var(--orange); }
+  .asha-faq p { margin:0 0 1.5rem; line-height:1.75; color:var(--muted);
+    max-width:720px; }
+  .asha-faq a { color:var(--orange); }
+
+  /* compact recruitment timeline */
+  .rt-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr));
+    gap:1.2rem; }
+  .rt-card { border:1px solid var(--line); border-radius:10px; padding:1.4rem 1.4rem 1.5rem;
+    background:var(--panel); transition:border-color .25s ease; }
+  .rt-card:hover { border-color:var(--orange); }
+  .rt-date { display:inline-block; font-size:.74rem; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--orange); border:1px solid rgba(242,123,33,.45);
+    border-radius:999px; padding:.3em .9em; margin-bottom:.8rem; }
+  .rt-card h3 { font-size:1.25rem; margin:0 0 .4rem; }
+  .rt-card p { margin:0; font-size:.9rem; line-height:1.6; color:var(--muted); }
+  .rt-card a { color:var(--orange); }
 
   .asha-prose { max-width:680px; line-height:1.8; color:var(--muted); }
   .asha-prose strong { color:var(--cream); }
@@ -370,30 +566,67 @@ ASHA_CSS = '''<style>
 
   /* mobile */
   @media (max-width:760px) {
+    #header .header-title-logo img, #header .header-mobile-logo img {
+      max-height:42px !important; width:auto !important; }
     .asha-hero { padding:12vh 6vw 6vh; min-height:76vh; align-items:center; }
-    .asha-hero h1 { font-size:clamp(2.4rem,11vw,3.2rem); }
+    .asha-hero h1 { font-size:clamp(2.2rem,10vw,3rem) !important; }
+    .asha-sub { font-size:1rem; }
     .asha-statement { padding:13vh 6vw 4vh; }
     .asha-statement h1 { font-size:clamp(1.9rem,8vw,2.6rem); }
-    .asha-pagehead { padding:12vh 6vw 3vh; }
-    .asha-section { padding:7vh 6vw; }
+    .asha-pagehead { padding:12vh 6vw 3vh; min-height:0; }
+    .asha-pagehead h1 { font-size:clamp(2rem,9vw,2.6rem); }
+    .asha-section { padding:6vh 6vw; }
     .asha-figure { padding:0 6vw 5vh; }
     .asha-row { gap:2rem; }
-    .asha-split-text { padding:12vh 6vw 6vh; }
-    .asha-split-photo { min-height:300px; flex-basis:100%; }
+    .asha-split { min-height:0; }
+    .asha-split-text { padding:14vh 6vw 6vh; }
+    .asha-split-text h1 { font-size:clamp(2rem,9vw,2.6rem); }
+    .asha-split-photo { min-height:280px; flex-basis:100%; }
     .asha-item { gap:1.1rem; padding:1.5rem 0; flex-wrap:wrap; }
     .asha-item .num { flex:0 0 2.2rem; font-size:1.5rem; }
     .asha-item p { max-width:100%; }
     .asha-ctas { gap:.8em; }
     .asha-btn { padding:.85em 1.6em; font-size:.95rem; }
     .asha-stats { gap:1.4rem; }
-    .asha-stat b { font-size:2rem; }
+    .asha-stat b { font-size:1.9rem; }
+    .asha-stat { flex:1 1 40%; padding-left:1rem; }
     .asha-board-row { padding:.9rem 1rem; }
     .asha-board-row .who { font-size:.9rem; }
+    .proj-grid { grid-template-columns:1fr; gap:1.4rem; }
+    .proj-card h3 { font-size:1.35rem; }
+    .rt-grid { grid-template-columns:1fr 1fr; gap:.9rem; }
+    .rt-card { padding:1.1rem; }
+    .rt-card h3 { font-size:1.05rem; }
+    .rt-card p { font-size:.82rem; }
+    .asha-faq summary { font-size:1rem; padding:1.2rem 0; }
+    .asha-embed-frame iframe { height:70vh; min-height:480px; }
+    .asha-footer { padding:3.5rem 6vw 2.5rem; }
+    .asha-footer-cols { gap:2.5rem 2rem; }
+    .asha-footer-col--brand img { width:200px; }
+    .asha-footer-col p { font-size:.95rem; }
+    .asha-footer-col--contact { margin-left:0; text-align:left; align-self:auto; }
     .proj-loc { display:block; margin:.3em 0 .5em; } }
+  @media (max-width:430px) {
+    .rt-grid { grid-template-columns:1fr; } }
   @media (prefers-reduced-motion:reduce) {
     .asha * { transition:none !important; } }
 
-  /* projects page */
+  /* projects gallery */
+  .proj-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+    gap:2rem; }
+  .proj-card { border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    background:var(--panel); display:flex; flex-direction:column;
+    transition:border-color .3s ease, box-shadow .3s ease; }
+  .proj-card:hover { border-color:var(--orange);
+    box-shadow:0 16px 46px rgba(0,0,0,.4); }
+  .proj-card img { width:100%; aspect-ratio:3/2; object-fit:cover; display:block; }
+  .proj-card-body { padding:1.6rem 1.7rem 1.8rem; display:flex;
+    flex-direction:column; gap:.45rem; flex:1; }
+  .proj-card h3 { font-size:1.5rem; margin:0; }
+  .proj-card .proj-meta { font-size:.78rem; letter-spacing:.08em;
+    text-transform:uppercase; color:rgba(244,233,215,.55); }
+  .proj-card p.desc { margin:.4rem 0 0; line-height:1.65; color:var(--muted);
+    font-size:.95rem; flex:1; }
   .proj-loc { font-size:.78rem; letter-spacing:.16em; text-transform:uppercase;
     color:var(--orange); }
   .proj-link { font-size:.9rem; color:var(--cream); text-decoration:none;
@@ -405,49 +638,18 @@ ASHA_CSS = '''<style>
 # ------------------------------------------------------------- page mains ---
 MAINS = {}
 
-# HOME: short. Photo hero, one stat strip, one orange band. Done.
+# HOME = ABOUT: the about page is the landing page now (old home removed).
 MAINS["index"] = '''<section class="asha-hero" style="background-image:url(assets/photo-kurta.jpg); background-position:center 35%;">
   <div class="shade"></div>
-  <div class="asha-hero-inner">
+  <div class="asha-hero-inner" style="max-width:940px;">
     <span class="asha-kicker">Asha for Education, UC Berkeley</span>
-    <h1>Hope, one <em>classroom</em> at a time.</h1>
-    <p class="asha-sub">We're Berkeley students raising money so kids in India can
-    stay in school. Asha means hope. We've been at it since 1991.</p>
-    <div class="asha-ctas">
+    <h1 style="font-size:clamp(2.4rem,4.8vw,3.9rem); line-height:1.1;">Asha means hope.
+    The plan since 1991: find people doing honest work for kids in India, fund them,
+    and <em>stay connected the whole way</em>.</h1>
+    <div class="asha-ctas" style="margin-top:1.6em;">
       <a class="asha-btn" href="donations.html">Donate</a>
       <a class="asha-btn asha-btn--ghost" href="join.html">Join us</a>
     </div>
-  </div>
-</section>
-<section class="asha-section asha-section--panel"><div class="asha-wrap">
-  <div class="asha-stats">
-    <div class="asha-stat"><b>1991</b><span>Founded at Berkeley</span></div>
-    <div class="asha-stat"><b>100%</b><span>Volunteer run</span></div>
-    <div class="asha-stat"><b>$0</b><span>Taken as overhead</span></div>
-  </div>
-</div></section>
-<section class="asha-section asha-section--orange"><div class="asha-wrap">
-  <div class="asha-row">
-    <div>
-      <h2>A little from you goes a long way there.</h2>
-      <p>School supplies, a teacher's stipend, a scholarship that keeps a girl in
-      class. That's what your donation turns into.</p>
-    </div>
-    <div style="flex:0 1 auto;">
-      <a class="asha-btn" style="background:#171109; border-color:#171109; color:#f4e9d7 !important;"
-         href="donations.html">Give today</a>
-    </div>
-  </div>
-</div></section>'''
-
-# ABOUT: photo hero (board photo), statement-style heading over it.
-MAINS["about"] = '''<section class="asha-hero" style="background-image:url(assets/photo-board.jpg); background-position:center 30%;">
-  <div class="shade"></div>
-  <div class="asha-hero-inner" style="max-width:940px;">
-    <span class="asha-kicker">About us</span>
-    <h1 style="font-size:clamp(2.4rem,4.8vw,3.9rem); line-height:1.1;">Asha means hope.
-    The plan since 1991: find people doing honest work for kids in India, fund them,
-    and <em>stay out of the way</em>.</h1>
   </div>
 </section>
 <section class="asha-section"><div class="asha-wrap">
@@ -490,90 +692,127 @@ MAINS["about"] = '''<section class="asha-hero" style="background-image:url(asset
       running it, and when we can, visit in person.</p>
       <p><strong>The chapter votes.</strong> Funding decisions happen at general
       meetings. Every member gets a voice.</p>
-      <p><strong>We follow through.</strong> Projects report progress, and the ones
-      that deliver for kids keep our support.</p>
+      <p><strong>We follow through.</strong> Funded projects send us progress
+      reports, and we keep funding the ones that are working.</p>
     </div>
     <img src="assets/photo-culture.jpg" alt="Members celebrating in traditional dress on campus" loading="lazy"/>
+  </div>
+</div></section>
+<section class="asha-section asha-section--orange"><div class="asha-wrap">
+  <div class="asha-row">
+    <div>
+      <h2>Your money goes further than you'd think.</h2>
+      <p>Donations pay for things like school supplies, teachers' stipends, and
+      scholarships that keep kids in class.</p>
+    </div>
+    <div style="flex:0 1 auto;">
+      <a class="asha-btn" style="background:#171109; border-color:#171109; color:#f4e9d7 !important;"
+         href="donations.html">Give today</a>
+    </div>
   </div>
 </div></section>'''
 
 # PROJECTS: the chapter's real partner projects (from berkeley.ashanet.org).
-PROJECTS = [  # (name, location, description, link, photo)
-    ("Rewards Trust", "Rural Tamil Nadu",
-     "Strengthens government schools by placing trained teachers in them and "
-     "keeping those teachers growing. Close to 8,000 students across 25 villages.",
+PROJECTS = [  # (name, location, partner, facts, description, link, photo)
+    ("Rewards Trust", "Rural Tamil Nadu", "Rewards Trust",
+     "8,000 students &middot; 25 villages",
+     "A volunteer-run, zero-overhead organization building a stronger government "
+     "school system in rural Tamil Nadu. It places trained teachers in public "
+     "schools and keeps investing in their development, so close to 8,000 "
+     "students across 25 villages get consistent, quality instruction.",
      "http://ashanet.org/project/?pid=590", "proj-rewards.jpg"),
-    ("Sakhi", "Mumbai, Maharashtra",
-     "An after-school learning program for girls in Mumbai's slums, founded in "
-     "2008 by Aarti Naik. Run by Sakhi for Girls Education.",
+    ("Sakhi", "Mumbai, Maharashtra", "Sakhi for Girls Education",
+     "Founded 2008 &middot; Girls' education",
+     "Sakhi creates quality learning spaces at the community level for girls in "
+     "Mumbai's slums. Founded in 2008 by Aarti Naik, it runs after-school "
+     "programs that give girls a secure place to study, catch up, and stay in "
+     "school past the point where most are pulled out.",
      "http://sakhiforgirlseducation.org/", "proj-sakhi.jpg"),
-    ("Mera Sahara", "Noida, Uttar Pradesh",
-     "A day shelter and education center for children of migrant laborers, "
-     "preparing them for government school and vocational paths. Run by the "
-     "Joint Women's Programme.",
+    ("Mera Sahara", "Noida, Uttar Pradesh", "Joint Women's Programme",
+     "Day shelter &middot; School preparation",
+     "An education center and day shelter for children of migrant day laborers. "
+     "Kids who would otherwise spend the day on worksites get basic education, "
+     "meals, and a safe place, with a path toward government school enrollment "
+     "and vocational training.",
      "http://ashanet.org/project/?pid=1068", "proj-mera.jpg"),
-    ("Jamghat", "Old Delhi",
-     "Shelters for street children across three facilities. Our chapter funds the "
-     "education of 15 residents at the boys' shelter.",
+    ("Jamghat", "Old Delhi", "Jamghat",
+     "3 facilities &middot; 15 students funded by us",
+     "A registered NGO creating a safe environment for street children in Old "
+     "Delhi, across three facilities including overnight shelters and day "
+     "programs. Our chapter directly funds the education of 15 residents at the "
+     "boys' shelter.",
      "http://ashanet.org/project/?pid=1082", "proj-jamghat.jpg"),
-    ("Avantika Vidhya Bhavan", "Madhya Pradesh",
-     "A K-12 school run by the Arpan Society serving about 430 children from 13 "
-     "villages, with meals and transportation included.",
+    ("Avantika Vidhya Bhavan", "Madhya Pradesh", "Arpan Society",
+     "K-12 &middot; 430 children &middot; 13 villages",
+     "A full K-12 school serving about 430 children from impoverished families "
+     "across 13 villages. Beyond qualified instruction, the school provides "
+     "meals, transportation, and medical care, removing the everyday barriers "
+     "that keep kids out of class.",
      "http://ashanet.org/project/?pid=872", "proj-avantika.jpg"),
-    ("Little Stars", "Varanasi, Uttar Pradesh",
-     "A free school educating more than 600 children from pre-K through 10th "
-     "grade, the only one of its kind serving poor families in its area.",
+    ("Little Stars", "Varanasi, Uttar Pradesh", "Little Stars School",
+     "600+ children &middot; Pre-nursery to 10th grade",
+     "A free school educating more than 600 children from pre-nursery through "
+     "10th grade, funded entirely by private donations. It is the only "
+     "independent quality school serving poor families in its part of Varanasi.",
      "http://ashanet.org/project/?pid=98", "proj-littlestars.jpg"),
-    ("Tihar", "Delhi",
-     "An education program inside the Tihar Jail complex, run with the Samarpan "
-     "Foundation and aimed at rehabilitation and family support. Funded since 2015.",
+    ("Tihar", "Delhi", "Samarpan Foundation",
+     "Funded since May 2015",
+     "An education program inside the Tihar Jail complex, one of the largest "
+     "prison complexes in South Asia. Run with the Samarpan Foundation, it "
+     "provides education to incarcerated people with rehabilitation and family "
+     "support at its center. Our newest project, funded since May 2015.",
      "http://ashanet.org/project/?pid=1213", "proj-tihar.jpg"),
 ]
-_proj_rows = "\n".join(f'''  <div class="asha-row{' asha-row--flip' if i % 2 else ''}" style="margin-bottom:6rem;">
-    <img src="assets/{photo}" alt="Children at {n}" loading="lazy"/>
-    <div>
-      <span class="num" style="font-size:1.6rem; color:var(--orange);">{i+1:02d}</span>
-      <h3 style="font-size:clamp(1.6rem,2.6vw,2.2rem); margin:.3em 0 .4em;">{n}</h3>
-      <span class="proj-loc">{loc}</span>
-      <p style="margin-top:1em;">{desc}</p>
-      <p style="margin-top:1.2em;"><a class="proj-link" href="{url}" target="_blank" rel="noopener">Learn more</a></p>
-    </div>
-  </div>''' for i, (n, loc, desc, url, photo) in enumerate(PROJECTS))
+_proj_cards = "\n".join(f'''    <div class="proj-card">
+      <img src="assets/{photo}" alt="Children at {n}" loading="lazy"/>
+      <div class="proj-card-body">
+        <h3>{n}</h3>
+        <span class="proj-loc">{loc}</span>
+        <span class="proj-meta">{partner} &middot; {facts}</span>
+        <p class="desc">{desc}</p>
+        <p style="margin:1rem 0 0;"><a class="proj-link" href="{url}" target="_blank" rel="noopener">Learn more</a></p>
+      </div>
+    </div>''' for i, (n, loc, partner, facts, desc, url, photo) in enumerate(PROJECTS))
 
-MAINS["projects"] = f'''<section class="asha-pagehead">
+MAINS["projects"] = f'''<section class="asha-pagehead asha-pagehead--snug" style="padding-bottom:3vh;">
   <span class="asha-kicker">Our projects</span>
-  <h1>Seven projects. One goal.</h1>
-  <p>These are the real places your money goes. Each one was read, questioned, and
-  voted on by students in this chapter.</p>
+  <h1>The projects we fund.</h1>
+  <p>This is where the money goes. Students in this chapter read each partner's
+  proposal, asked them hard questions, and voted before funding anything. Every
+  project reports back on the children it serves.</p>
 </section>
-<section class="asha-section"><div class="asha-wrap">
-{_proj_rows}
-  <p style="text-align:center;"><a class="asha-btn" href="donations.html">Support a project</a></p>
+<section class="asha-section" style="padding-top:0;"><div class="asha-wrap">
+  <div class="asha-stats" style="margin-bottom:3rem;">
+    <div class="asha-stat"><b>7</b><span>Partner projects</span></div>
+    <div class="asha-stat"><b>6</b><span>States across India</span></div>
+    <div class="asha-stat"><b>9,000+</b><span>Children reached</span></div>
+    <div class="asha-stat"><b>100%</b><span>Chapter voted</span></div>
+  </div>
+  <div class="proj-grid">
+{_proj_cards}
+  </div>
+  <p style="text-align:center; margin-top:4rem;"><a class="asha-btn" href="donations.html">Support a project</a></p>
 </div></section>'''
 
 # MEMBERS: figure first, then the Airtable directory (leadership grid removed;
 # the Airtable is the member directory now). MEMBERS list kept above for reference.
 MAINS["members"] = f'''<section class="asha-pagehead asha-pagehead--snug">
   <span class="asha-kicker">Our team</span>
-  <h1>The people behind the hope.</h1>
+  <h1>Meet the chapter.</h1>
 </section>
 <figure class="asha-figure">
   <img src="assets/photo-team.jpg" alt="The Asha Berkeley team on the steps of Doe Library"/>
   <figcaption>The chapter on the steps of Doe Library, UC Berkeley.</figcaption>
 </figure>
-<section class="asha-section" style="padding-left:2vw; padding-right:2vw; background:#000;">
-  <div class="asha-wrap">
-    <h2>Meet us over coffee</h2>
-    <p class="asha-prose" style="margin-bottom:2rem;">Every one of us is a volunteer.
-    Browse the table, pick a person, and book a chat.</p>
+<section class="asha-section" style="background:#000;"><div class="asha-wrap">
+  <h2 style="margin-bottom:2rem;">Meet us over coffee</h2>
+  <div class="asha-embed-frame">
+    <iframe class="airtable-embed" title="Asha Berkeley coffee chats"
+      src="{AIRTABLE_EMBED}" frameborder="0"></iframe>
   </div>
-  <iframe class="airtable-embed" title="Asha Berkeley coffee chats"
-    src="{AIRTABLE_EMBED}"
-    frameborder="0" width="100%" height="1100"
-    style="background:transparent; border:1px solid var(--line); border-radius:4px; display:block;"></iframe>
   <p class="asha-note" style="margin-top:1rem; text-align:center;">Table not loading?
   <a href="{AIRTABLE}" target="_blank" rel="noopener">Open it on Airtable</a>.</p>
-</section>
+</div></section>
 <section class="asha-section"><div class="asha-wrap">
   <div class="asha-row">
     <div>
@@ -587,56 +826,117 @@ MAINS["members"] = f'''<section class="asha-pagehead asha-pagehead--snug">
   </div>
 </div></section>'''
 
-# JOIN: split-screen opening + coffee chat CTA with the Airtable link.
+# JOIN: recruitment page modeled on the Phoenix join tab (timeline, application,
+# FAQ), with Asha content. Coffee chats live on the Members page.
 MAINS["join"] = f'''<section class="asha-split">
   <div class="asha-split-text">
-    <span class="asha-kicker">Get involved</span>
-    <h1>Do something <em>real</em> with your semester.</h1>
-    <p class="asha-sub">Help decide which projects get funded, run fundraisers that
-    matter, and meet people worth keeping.</p>
+    <span class="asha-kicker">Recruitment</span>
+    <h1>We're recruiting our <em>Fall 2026</em> class.</h1>
+    <p class="asha-sub">Hey there! Asha Berkeley is looking for people who care about
+    getting kids in India a good education. Check out the timeline and FAQ below, then come say hi.</p>
     <div class="asha-ctas">
-      <a class="asha-btn" href="{AIRTABLE}" target="_blank" rel="noopener">Sign up for a coffee chat</a>
+      <a class="asha-btn" href="https://docs.google.com/forms/d/e/1FAIpQLScJCUTwTBdaumWnkpgEn1W5iBwTvK9SCMTFJNJyN10K6cRkCA/viewform" target="_blank" rel="noopener">Apply now</a>
       <a class="asha-btn asha-btn--ghost" href="mailto:{EMAIL}?subject=Joining%20Asha%20Berkeley">Email us</a>
     </div>
   </div>
   <div class="asha-split-photo" style="background-image:url(assets/photo-social.jpg);"></div>
 </section>
 <section class="asha-section"><div class="asha-wrap">
-  <h2>Start with a coffee chat</h2>
-  <p class="asha-prose">The easiest way to figure out if Asha is for you is to talk
-  to someone in it. Pick a time on our
-  <a href="{AIRTABLE}" target="_blank" rel="noopener">coffee chat Airtable</a>,
-  or book directly with anyone on the <a href="members.html">members page</a>.
-  No prep needed. Come with questions.</p>
+  <h2>Recruitment timeline</h2>
+  <p class="asha-prose" style="margin-bottom:2rem;">Exact dates, times, and rooms
+  drop on our <a href="https://www.instagram.com/asha_berkeley/" target="_blank"
+  rel="noopener">Instagram</a> at the start of the semester.</p>
+  <div class="rt-grid">
+    <div class="rt-card"><span class="rt-date">Mon 8/31</span>
+      <h3>Coffee chats &amp; apps open</h3></div>
+    <div class="rt-card"><span class="rt-date">Thu 9/3 &middot; 8-9 PM</span>
+      <h3>Infosession 1</h3>
+      <p>Dwinelle 259</p></div>
+    <div class="rt-card"><span class="rt-date">Wed 9/9 &middot; 8-9 PM</span>
+      <h3>Infosession 2</h3>
+      <p>Dwinelle 79</p></div>
+    <div class="rt-card"><span class="rt-date">Fri 9/11 &middot; 11:59 PM</span>
+      <h3>Written apps due</h3></div>
+    <div class="rt-card"><span class="rt-date">Sat 9/12</span>
+      <h3>First round interviews</h3>
+      <p>Invite only</p></div>
+    <div class="rt-card"><span class="rt-date">Sun 9/13</span>
+      <h3>Social night</h3>
+      <p>Invite only</p></div>
+  </div>
 </div></section>
 <section class="asha-section asha-section--panel"><div class="asha-wrap">
-  <h2>How joining works</h2>
-  <div class="asha-list">
-    <div class="asha-item"><span class="num">1</span><div>
-      <h3>Grab a coffee chat</h3>
-      <p>Meet a current member, hear the honest version of what we do, and ask
-      anything.</p></div></div>
-    <div class="asha-item"><span class="num">2</span><div>
-      <h3>Come to a general meeting</h3>
-      <p>No application pressure and no experience needed. Times are posted each
-      semester. <!-- TODO: add meeting time and location --></p></div></div>
-    <div class="asha-item"><span class="num">3</span><div>
-      <h3>Pick your team</h3>
-      <p>Projects, events, publicity, finance, or Team Asha. Find the corner that
-      fits you and make it count.</p></div></div>
+  <h2>What you'd actually do</h2>
+  <div class="asha-cards" style="justify-content:flex-start;">
+    <div class="asha-card"><h3>Evaluate real projects</h3>
+      <p>Read proposals from NGOs in India, question their budgets, and vote on
+      which ones we fund. You'll vote on where the chapter's money actually goes.</p></div>
+    <div class="asha-card"><h3>Run fundraisers</h3>
+      <p>Campus events, community drives, and Team Asha. What we raise is what our
+      seven partner projects get.</p></div>
+    <div class="asha-card"><h3>Build the community</h3>
+      <p>Socials, retreats, big-little families. People stick around here well past
+      graduation.</p></div>
   </div>
-  <p class="asha-prose" style="margin-top:2.5rem;">Questions? Write to
-  <a href="mailto:{EMAIL}">{EMAIL}</a>.</p>
+</div></section>
+<section class="asha-section"><div class="asha-wrap">
+  <h2>Frequently asked questions</h2>
+  <div style="margin-top:2.5rem;">
+    <details class="asha-faq">
+      <summary>Why education in India?</summary>
+      <p>Education is one of the best routes out of poverty, and India has more
+      school-age kids than any other country. Small amounts of money go
+      remarkably far there: a semester of fundraising here can pay teachers, buy
+      books, and keep whole classrooms running. We fund people already doing that
+      work well and stay connected with them through the year.</p>
+    </details>
+    <details class="asha-faq">
+      <summary>What exactly can I expect as a member?</summary>
+      <p>You join a committee (projects, events, publicity, finance, or Team Asha)
+      and work with it through the semester. You read funding proposals from
+      partner NGOs, help run fundraisers, and vote at general meetings on where the
+      money goes. Every member gets a voice in funding decisions, including brand
+      new ones.</p>
+    </details>
+    <details class="asha-faq">
+      <summary>I'm not planning a nonprofit career. Is Asha still a good fit?</summary>
+      <p>Almost none of us are. Most of us are headed into engineering, medicine,
+      policy, or whatever else. Asha is the thing we do that isn't about our own
+      careers. You'll get real practice reading budgets, running events, and working with
+      a team, which is useful no matter what you do after Berkeley.</p>
+    </details>
+    <details class="asha-faq">
+      <summary>What does Asha look for in applicants?</summary>
+      <p>No specific major, year, or experience. We look for people who care about this work and follow through on what they
+      sign up for. If you'd read a school's budget proposal carefully because kids
+      depend on it, you're our kind of person.</p>
+    </details>
+    <details class="asha-faq">
+      <summary>What's the time commitment?</summary>
+      <p>A few hours a week for most members: general meetings plus your committee
+      work. It ramps up around big fundraisers and project voting, and you'll know
+      those weeks in advance. Many members balance Asha with heavy course loads and
+      other clubs.</p>
+    </details>
+    <details class="asha-faq">
+      <summary>What's the new member experience like?</summary>
+      <p>You get a big through our big-little program and join a committee right
+      away. New members vote on funding decisions in their first semester.</p>
+    </details>
+    <details class="asha-faq">
+      <summary>How do I take my best shot at applying?</summary>
+      <p>Come to an infosession and book a <a href="members.html">coffee chat</a>.
+      They're the best way to see what we're about, and it helps us put a face to
+      your application. Then be real in the application. We'd
+      rather read why this mission matters to you than a list of titles.</p>
+    </details>
+  </div>
+  <p class="asha-prose" style="margin-top:3rem;">Anything else? Write to
+  <a href="mailto:{EMAIL}">{EMAIL}</a> or DM us on
+  <a href="https://www.instagram.com/asha_berkeley/" target="_blank" rel="noopener">Instagram</a>.</p>
 </div></section>'''
 
 # DONATIONS: flat centered opening + static board.
-_board = [("1", "$500"), ("2", "$250"), ("3", "$100"), ("4", "$75"), ("5", "$50"),
-          ("6", "$40"), ("7", "$25"), ("8", "$20")]
-_board_html = "\n".join(
-    f'''    <div class="asha-board-row"><span class="rank">{r}</span>
-      <span class="who">Template Donation</span><span class="amt">{a}</span></div>'''
-    for r, a in _board)
-
 MAINS["donations"] = f'''<section class="asha-pagehead">
   <span class="asha-kicker">Donations</span>
   <h1>Keep a kid <em>in school</em>.</h1>
@@ -648,36 +948,17 @@ MAINS["donations"] = f'''<section class="asha-pagehead">
   </div>
 </section>
 <section class="asha-section asha-section--panel"><div class="asha-wrap">
-  <h2 style="text-align:center;">Top donations</h2>
-  <p class="asha-note" style="text-align:center; margin-bottom:2.5rem;">Placeholder
-  entries until real donations are wired up.</p>
-  <div class="asha-board">
-{_board_html}
-  </div>
-</div></section>
-<section class="asha-section"><div class="asha-wrap">
-  <h2>Ways to give</h2>
-  <div class="asha-list">
-    <div class="asha-item"><span class="num">01</span><div>
-      <h3>One-time gift</h3>
-      <p>Any amount helps. A single donation buys school supplies, funds a
-      scholarship, or supports a partner project.</p></div></div>
-    <div class="asha-item"><span class="num">02</span><div>
-      <h3>Monthly giving</h3>
-      <p>Recurring gifts let us commit to long-term programs and plan ahead with
-      confidence.</p></div></div>
-    <div class="asha-item"><span class="num">03</span><div>
-      <h3>Corporate matching</h3>
-      <p>Many employers match charitable donations. Ask your HR team, or reach out
-      and we'll help with the paperwork.</p></div></div>
-  </div>
-  <p class="asha-prose" style="margin-top:2.5rem;">Questions about donating,
-  sponsorships, or in-kind gifts? Write to <a href="mailto:{EMAIL}">{EMAIL}</a>.</p>
+  <h2>Where your money goes</h2>
+  <p class="asha-prose">All of it goes to our projects and programs. We're entirely
+  volunteer run, and every dollar is accounted for by our finance team.</p>
+  <p class="asha-prose" style="margin-top:1.2em;">Questions about donating,
+  sponsorships, or in-kind gifts? Write to <a href="mailto:{EMAIL}">{EMAIL}</a>
+  or reach us on <a href="{VENMO}" target="_blank" rel="noopener">Venmo
+  @ashaberkeley</a>.</p>
 </div></section>'''
 
 TITLES = {
-    "index": ("Asha Berkeley", None),
-    "about": ("About | Asha Berkeley", "about.html"),
+    "index": ("Asha Berkeley", "index.html"),
     "projects": ("Projects | Asha Berkeley", "projects.html"),
     "members": ("Members | Asha Berkeley", "members.html"),
     "join": ("Join | Asha Berkeley", "join.html"),
